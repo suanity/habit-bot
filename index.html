@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Habit RPG</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Habit RPG">
+<meta name="theme-color" content="#0b0d12">
+<script>
+const _m={name:'Habit RPG',short_name:'Habit RPG',start_url:'.',display:'standalone',background_color:'#0b0d12',theme_color:'#0b0d12',icons:[{src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230b0d12'/><text y='.9em' font-size='72' x='50%' dominant-baseline='middle' text-anchor='middle'>⚔️</text></svg>",sizes:'192x192',type:'image/svg+xml'}]};
+const _mb=new Blob([JSON.stringify(_m)],{type:'application/json'});
+const _ml=document.createElement('link');_ml.rel='manifest';_ml.href=URL.createObjectURL(_mb);document.currentScript.after(_ml);
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap');
+:root{
+  --bg:#0b0d12;--s1:#131722;--s2:#181d29;--s3:#1e2334;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.13);
+  --text:#edf1f7;--muted:#9da7bc;--faint:#4e566a;
+  --gold:#f3c55a;--teal:#5bd9d0;--green:#6fe28b;--red:#ff6b6b;--orange:#ff9966;
+  --r:20px;--sh:0 8px 32px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:radial-gradient(ellipse at top,#171d2b,#0b0d12 60%);min-height:100vh;color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}input,select{cursor:text}
+.app{max-width:460px;margin:0 auto;padding:16px 14px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.brand{font-family:'Exo 2',sans-serif;font-size:19px;font-weight:800;display:flex;align-items:center;gap:8px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:background .3s}
+.sync-dot.ok{background:var(--green)}
+.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite}
+.sync-dot.err{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.tbr{display:flex;gap:8px}
+.icobtn{width:40px;height:40px;border-radius:13px;border:1px solid var(--border);background:var(--s1);color:var(--text);display:flex;align-items:center;justify-content:center;font-size:17px}
+.icobtn:hover{background:var(--s2)}
+/* activation */
+.act-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
+.act-logo{font-size:64px;margin-bottom:20px}
+.act-title{font-family:'Exo 2',sans-serif;font-size:26px;font-weight:800;margin-bottom:8px}
+.act-sub{font-size:13px;color:var(--muted);margin-bottom:32px;line-height:1.6}
+.act-input{width:100%;padding:16px;border-radius:14px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-size:17px;font-weight:700;text-align:center;letter-spacing:2px;margin-bottom:12px}
+.act-input:focus{outline:none;border-color:rgba(243,197,90,.5)}
+.act-input.error{border-color:rgba(255,107,107,.5);animation:shake .3s}
+.act-error{font-size:12px;color:var(--red);min-height:16px;margin-bottom:12px}
+.act-btn{width:100%;padding:15px;border:none;border-radius:13px;background:var(--gold);color:#111;font-size:16px;font-weight:800;font-family:'Exo 2',sans-serif}
+.act-loading{font-size:13px;color:var(--muted);margin-top:12px}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+/* start screen */
+.start-screen{text-align:center;padding:48px 24px}
+.start-title{font-family:'Exo 2',sans-serif;font-size:28px;font-weight:800;margin-bottom:8px}
+.start-sub{font-size:14px;color:var(--muted);margin-bottom:32px;line-height:1.6}
+.start-dur{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px}
+.start-dur label{font-size:13px;color:var(--muted)}
+.start-dur input{width:72px;padding:10px;border-radius:12px;background:var(--s2);border:1px solid var(--border);color:var(--text);text-align:center;font-size:16px;font-weight:700}
+.btn-start{width:100%;padding:18px;border:none;border-radius:16px;background:var(--gold);color:#111;font-size:18px;font-weight:800;font-family:'Exo 2',sans-serif}
+.chal-bar{padding:12px 14px;border:1px solid rgba(91,217,208,.22);border-radius:16px;background:rgba(91,217,208,.06);margin-bottom:12px}
+.chal-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.chal-title{font-size:13px;font-weight:700;color:var(--teal)}
+.chal-dates{font-size:12px;color:var(--muted)}
+.prog-track{height:7px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:6px}
+.prog-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--teal),#a0ede9)}
+.chal-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.chal-reset{font-size:11px;color:var(--faint);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline}
+.hero{padding:16px;border:1px solid var(--border);border-radius:var(--r);background:linear-gradient(160deg,rgba(243,197,90,.1),rgba(255,255,255,.02));box-shadow:var(--sh);display:grid;grid-template-columns:88px 1fr;gap:14px;align-items:start;margin-bottom:12px}
+.av-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+.av{width:84px;height:84px;border-radius:24px;background:linear-gradient(135deg,#252e46,#161b28);border:1px solid rgba(243,197,90,.22);display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:40px}
+.av img{width:100%;height:100%;object-fit:cover}
+.av-sub{font-size:11px;color:var(--muted)}
+.hero-r{display:flex;flex-direction:column;gap:8px}
+.hname{font-family:'Exo 2',sans-serif;font-size:21px;font-weight:800;line-height:1.1}
+.rank-row{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.rank{padding:6px 11px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid}
+.xp-total{font-family:'Exo 2',sans-serif;font-size:21px;font-weight:800;color:var(--gold)}
+.bar-track{height:8px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+.bar-fill{height:100%;border-radius:999px}
+.next-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.scard{padding:12px 8px;text-align:center;border:1px solid var(--border);border-radius:16px;background:var(--s1)}
+.sv{font-family:'Exo 2',sans-serif;font-size:19px;font-weight:800}
+.sl{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.3}
+.sec{margin-bottom:12px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 2px}
+.sec-title{font-family:'Exo 2',sans-serif;font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.sec-sub{font-size:12px;color:var(--muted)}
+.task-list{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--border);border-radius:var(--r);background:var(--s1)}
+.task-item{display:flex;align-items:center;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--s2);gap:10px}
+.task-item.done{border-color:rgba(243,197,90,.35);background:rgba(243,197,90,.07)}
+.task-cb{background:none;border:none;padding:0;display:flex;align-items:center;flex:1;gap:10px;text-align:left;cursor:pointer}
+.task-txt{display:flex;flex-direction:column;gap:3px}
+.task-name{font-size:14px;font-weight:600;color:#edf1f7}
+.task-meta{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.task-streak-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(255,153,102,.15);color:var(--orange);border:1px solid rgba(255,153,102,.25)}
+.task-streak-badge.on{background:rgba(255,153,102,.25);border-color:rgba(255,153,102,.5)}
+.check{width:26px;height:26px;border-radius:9px;border:2px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.task-item.done .check{background:var(--gold);border-color:var(--gold);color:#111}
+.num-inp{width:66px;padding:8px;border-radius:12px;background:#0d1017;border:1px solid var(--border);color:#edf1f7;text-align:center;font-weight:600;font-size:14px;flex-shrink:0}
+.num-inp:focus{outline:none;border-color:rgba(243,197,90,.4)}
+.xp-box{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:14px;background:rgba(243,197,90,.08);border:1px solid rgba(243,197,90,.18);margin-top:8px}
+.xp-earned{font-family:'Exo 2',sans-serif;font-size:22px;font-weight:800;color:var(--gold)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:5px 9px;border-radius:9px;background:var(--s2);border:1px solid var(--border);font-size:11px;color:var(--muted)}
+.streak-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.streak-card{padding:13px 14px;border:1px solid var(--border);border-radius:16px;background:var(--s1)}
+.sc-label{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:6px}
+.sc-val{font-family:'Exo 2',sans-serif;font-size:20px;font-weight:800}
+.sc-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.level-list{display:flex;flex-direction:column;gap:7px;padding:10px;border:1px solid var(--border);border-radius:var(--r);background:var(--s1)}
+.level-row{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1px solid var(--border);border-radius:13px;background:var(--s2)}
+.level-row.active-lv{border-color:rgba(243,197,90,.3);background:rgba(243,197,90,.07)}
+.lv-name{font-size:13px;font-weight:700}
+.lv-range{font-size:11px;color:var(--muted)}
+.lv-remain{font-size:11px;color:var(--muted);text-align:right}
+.days-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border:1px solid var(--border);border-radius:16px;background:var(--s1);color:var(--text);text-align:left}
+.dt-left{display:flex;flex-direction:column;gap:3px}
+.dt-title{font-size:13px;font-weight:700;color:#edf1f7}
+.dt-sub{font-size:11px;color:var(--muted)}
+.dt-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.arrow{font-size:14px;color:var(--muted);transition:transform .25s;display:inline-block}
+.arrow.open{transform:rotate(180deg)}
+.days-wrap{margin-top:8px}
+.days-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.day-cell{padding:9px 5px;background:var(--s1);border:1px solid var(--border);border-radius:16px;text-align:center}
+.day-cell.is-today{border-color:rgba(243,197,90,.3);background:rgba(243,197,90,.05)}
+.dc-wd{font-size:9px;color:var(--muted);margin-bottom:5px;text-transform:uppercase}
+.dc-dt{font-size:9px;color:var(--faint);margin-top:3px}
+.dc-xp{font-size:9px;color:var(--muted);margin-top:1px}
+.overlay{position:fixed;inset:0;background:rgba(7,9,14,.7);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;padding:12px;z-index:50}
+.overlay.show{display:flex}
+.sheet{max-width:460px;width:100%;max-height:90vh;overflow-y:auto;background:#0f1320;border:1px solid var(--border2);border-radius:26px;padding:18px}
+.sh-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sh-title{font-family:'Exo 2',sans-serif;font-size:20px;font-weight:800}
+.grp{padding:13px;background:var(--s1);border:1px solid var(--border);border-radius:18px;margin-bottom:10px}
+.grp-title{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin-bottom:10px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:9px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:12px;color:var(--muted)}
+.inp{width:100%;padding:10px 12px;border-radius:12px;background:#0a0e17;border:1px solid var(--border);color:#edf1f7}
+.inp:focus{outline:none;border-color:rgba(243,197,90,.4)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini{padding:9px 11px;border-radius:11px;background:var(--s2);border:1px solid var(--border);color:var(--text);font-size:13px;font-weight:600;white-space:nowrap}
+.mini:hover{background:var(--s3)}
+.del{padding:9px 11px;border-radius:11px;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.18);color:#ffb5b5;font-size:13px}
+.tog{padding:7px 11px;border-radius:11px;font-size:11px;font-weight:700;border:1px solid;cursor:pointer}
+.tog.on{background:rgba(111,226,139,.15);border-color:rgba(111,226,139,.35);color:var(--green)}
+.tog.off{background:rgba(255,255,255,.04);border-color:var(--border);color:var(--muted)}
+.btn-p{width:100%;padding:13px;border:none;border-radius:13px;background:var(--gold);color:#111;font-size:15px;font-weight:700}
+.btn-s{width:100%;padding:13px;border:1px solid var(--border);border-radius:13px;background:var(--s2);color:var(--text);font-size:15px;font-weight:700}
+.btn-d{width:100%;padding:13px;border:1px solid rgba(255,107,107,.2);border-radius:13px;background:rgba(255,107,107,.1);color:#ffb5b5;font-size:15px;font-weight:700}
+.g2btn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.save-bar{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;position:sticky;bottom:0;padding:10px 0 4px;background:#0f1320}
+.notice{font-size:12px;color:var(--muted);text-align:center;min-height:16px;margin-top:8px}
+.dur-box{padding:11px;border-radius:12px;background:rgba(243,197,90,.08);border:1px solid rgba(243,197,90,.18);font-size:13px;font-weight:600;color:var(--gold);text-align:center;margin-top:8px;min-height:40px;display:flex;align-items:center;justify-content:center}
+.hint{font-size:11px;color:var(--faint);margin-top:6px;line-height:1.5}
+.task-edit-row{display:grid;grid-template-columns:24px 1fr 64px 48px auto auto;gap:6px;align-items:center;margin-bottom:6px;padding:8px;border-radius:12px;background:var(--s2);border:1px solid var(--border)}
+.task-edit-row.dragging{opacity:.4}
+.drag-handle{color:var(--faint);font-size:16px;cursor:grab;user-select:none;text-align:center}
+.drag-handle:active{cursor:grabbing}
+.lv-edit-row{display:grid;grid-template-columns:1fr 44px auto;gap:6px;align-items:center;margin-bottom:6px}
+.lv-auto-badge{font-size:10px;color:var(--teal);background:rgba(91,217,208,.1);border:1px solid rgba(91,217,208,.2);border-radius:8px;padding:2px 8px;display:inline-block;margin-bottom:8px}
+.rule-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px}
+footer{padding:20px 0 4px;text-align:center;color:var(--faint);font-size:11px}
+@media(max-width:380px){.stats4{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:76px 1fr}.av{width:72px;height:72px;font-size:34px}.days-grid{grid-template-columns:repeat(4,1fr)}.task-edit-row{grid-template-columns:24px 1fr 56px 40px auto auto}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<div class="overlay" id="calOverlay">
+  <div class="sheet">
+    <div class="sh-head"><div class="sh-title">🗓 Челлендж</div><button class="icobtn" id="calClose">✕</button></div>
+    <div class="grp">
+      <div class="grp-title">Период</div>
+      <div class="g2">
+        <div class="field"><label>Начало</label><input class="inp" type="date" id="calStart"></div>
+        <div class="field"><label>Конец</label><input class="inp" type="date" id="calEnd"></div>
+      </div>
+      <div class="dur-box" id="calDur">Выбери даты</div>
+    </div>
+    <div class="g2btn" style="margin-top:4px">
+      <button class="btn-s" id="calCancel">Отмена</button>
+      <button class="btn-p" id="calSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="setOverlay">
+  <div class="sheet">
+    <div class="sh-head"><div class="sh-title">Настройки</div><button class="icobtn" id="setClose">✕</button></div>
+    <div class="grp">
+      <div class="grp-title">Профиль</div>
+      <div class="field"><label>Название трекера</label><input class="inp" id="cfgTitle"></div>
+      <div class="field"><label>Имя персонажа</label><input class="inp" id="cfgName"></div>
+      <div class="g2">
+        <div class="field"><label>Аватар-эмодзи</label><input class="inp" id="cfgEmoji" maxlength="4"></div>
+        <div class="field"><label>Цель XP в день</label><input class="inp" type="number" min="1" id="cfgGoal"></div>
+      </div>
+      <div class="field"><label>Фото аватара</label><input class="inp" type="file" accept="image/*" id="cfgPhoto"></div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">Штрафы и стрик</div>
+      <div class="g2">
+        <div class="field"><label>Штраф за пропуск</label><input class="inp" type="number" id="cfgPenalty"></div>
+        <div class="field"><label>Мин. XP для стрика</label><input class="inp" type="number" id="cfgThreshold"></div>
+      </div>
+      <div class="hint">Штраф = за каждый прошлый день с 0 XP. Стрик считается если набрано ≥ порога подряд.</div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">Бонусы за стрик</div>
+      <div id="rulesUI"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:8px">
+        <div class="field"><label>Дней подряд</label><input class="inp" type="number" id="nrDays" value="7" min="1"></div>
+        <div class="field"><label>Бонус XP</label><input class="inp" type="number" id="nrBonus" value="15" min="1"></div>
+        <button class="mini" id="addRuleBtn" style="margin-top:22px">+</button>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">Задания <span style="color:var(--faint);font-size:10px;font-weight:400;text-transform:none">· перетащи чтобы изменить порядок</span></div>
+      <div id="tasksUI"></div>
+      <div style="display:grid;grid-template-columns:1fr 64px 48px auto auto;gap:6px;align-items:end;margin-top:10px">
+        <div class="field"><label>Название</label><input class="inp" id="ntName"></div>
+        <div class="field"><label>Тип</label><select class="inp" id="ntType"><option value="checkbox">Чек</option><option value="number">Число</option></select></div>
+        <div class="field"><label>XP</label><input class="inp" type="number" id="ntXP" value="3" min="1"></div>
+        <div class="field"><label>Стрик</label><button class="tog on" id="ntStreakTog" onclick="this.classList.toggle('on');this.classList.toggle('off');this.textContent=this.classList.contains('on')?'🔥':'—'">🔥</button></div>
+        <button class="mini" id="addTaskBtn" style="margin-top:22px">+</button>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">Уровни</div>
+      <div class="lv-auto-badge">Пороги XP считаются автоматически</div>
+      <div id="levelsUI"></div>
+      <div class="hint" id="lvHint"></div>
+    </div>
+    <div class="grp">
+      <div class="grp-title">Данные</div>
+      <button class="btn-d" id="resetBtn">Сбросить все данные</button>
+      <div class="hint" style="text-align:center;margin-top:8px">Данные синхронизируются в облаке по твоему коду активации</div>
+    </div>
+    <div class="save-bar">
+      <button class="btn-s" id="cancelSet">Отмена</button>
+      <button class="btn-p" id="saveSet">Сохранить</button>
+    </div>
+    <div class="notice" id="setNotice"></div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE ───────────────────────────────────────────────────────────────
+const SUPA_URL='https://ivmdbkukjvxzoazcicet.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bWRia3VranZ4em9hemNpY2V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMTk5OTgsImV4cCI6MjA5MjU5NTk5OH0.0--m60cy6Ppz3_TC1-aX8sBG1ibyqHWE-ozR4y0zZM8';
+
+function supaHeaders(){return{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json'};}
+
+async function supaLoad(code){
+  try{
+    const r=await fetch(`${SUPA_URL}/rest/v1/user_data?code=eq.${encodeURIComponent(code)}&select=data`,{headers:supaHeaders()});
+    if(!r.ok)return null;
+    const rows=await r.json();
+    return rows.length>0?rows[0].data:null;
+  }catch{return null;}
+}
+
+async function supaUpsert(code,data){
+  try{
+    const r=await fetch(`${SUPA_URL}/rest/v1/user_data`,{
+      method:'POST',
+      headers:{...supaHeaders(),'Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({code,data,updated_at:new Date().toISOString()})
+    });
+    return r.ok;
+  }catch{return false;}
+}
+
+// debounced cloud sync
+let syncTimer=null;
+function scheduleSync(){
+  setSyncDot('syncing');
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(async()=>{
+    const ok=await supaUpsert(userCode,S);
+    setSyncDot(ok?'ok':'err');
+  },1500);
+}
+function setSyncDot(state){
+  const d=document.getElementById('syncDot');
+  if(d){d.className='sync-dot '+state;}
+}
+
+// ── ACTIVATION ─────────────────────────────────────────────────────────────
+const VALID_CODES=['HRPG-0V48-2A2C-AR1I','HRPG-6DPQ-92WR-LVV4','HRPG-WUD4-C6V0-QJBO','HRPG-EU9N-JSPJ-PKJJ','HRPG-R21N-YGGK-1BJC','HRPG-TE8T-JF21-V1H3','HRPG-UG3Q-Z4LF-0SLD','HRPG-4AEM-O8WE-HNJ1','HRPG-XY5Q-989Z-NCZF','HRPG-C1P3-SQ2W-N1D2','HRPG-CK52-B75M-CELH','HRPG-TQA2-62PK-QMZR','HRPG-7RIA-EEWH-DH3V','HRPG-FB3C-T9V9-PHY9','HRPG-YW0I-T5CA-HSFF','HRPG-ARUU-11ZB-QWN7','HRPG-XBOA-FCHF-SXXI','HRPG-54UQ-W8YE-STFM','HRPG-I5CF-GLMN-GVH1','HRPG-JI5K-KURQ-DM3K','HRPG-09XU-EYV7-LAO4','HRPG-4WO5-U2GK-DY0P','HRPG-EJSU-PIT1-N1CG','HRPG-D8NE-2N0A-92I2','HRPG-UYQ7-M5LP-JXPW','HRPG-BQ8G-6V71-YB85','HRPG-11W0-DIOG-56AK','HRPG-R1TZ-CDD7-XZQ5','HRPG-SFNF-H80D-1COU','HRPG-8W0H-1WNA-X9BB','HRPG-P8SG-AI8M-797F','HRPG-ORMR-HWL7-Z41N','HRPG-G7GV-DHCG-FL8L','HRPG-YWF0-008A-FKKI','HRPG-MTMJ-F017-8ZTA','HRPG-NWGK-HFTG-OHCK','HRPG-06KQ-WGRE-CBNJ','HRPG-V8SW-N46Q-IIBB','HRPG-5710-AVEL-S6ET','HRPG-UKB7-I48T-LLNL','HRPG-0GU8-2XSY-VNSF','HRPG-PVLM-49YV-CCKG','HRPG-PL29-MHGM-GF3Y','HRPG-U9ME-ERWO-D2N4','HRPG-829E-LJVH-VNSL','HRPG-TK3O-X96V-3HS7','HRPG-9URU-5WEW-CLB3','HRPG-MELO-L8SY-PW4C','HRPG-RE3U-MR8S-827U','HRPG-9Y0L-3TSM-WWZO'];
+const ACT_KEY='habit-rpg-code';
+let userCode=null;
+try{userCode=localStorage.getItem(ACT_KEY);}catch{}
+
+function showActivation(){
+  document.getElementById('app').innerHTML=`
+    <div class="act-screen">
+      <div class="act-logo">⚔️</div>
+      <div class="act-title">HABIT RPG</div>
+      <div class="act-sub">Введи код активации,<br>чтобы начать</div>
+      <input class="act-input" id="actInput" placeholder="HRPG-XXXX-XXXX-XXXX" maxlength="19" autocomplete="off" autocorrect="off" spellcheck="false">
+      <div class="act-error" id="actError"></div>
+      <button class="act-btn" id="actBtn">Активировать</button>
+      <div class="act-loading" id="actLoading"></div>
+    </div>`;
+  const inp=document.getElementById('actInput'),btn=document.getElementById('actBtn'),err=document.getElementById('actError'),loading=document.getElementById('actLoading');
+  inp.oninput=()=>{
+    const raw=inp.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
+    let f=raw.slice(0,4);
+    if(raw.length>4)f+='-'+raw.slice(4,8);
+    if(raw.length>8)f+='-'+raw.slice(8,12);
+    if(raw.length>12)f+='-'+raw.slice(12,16);
+    inp.value=f;err.textContent='';inp.classList.remove('error');
+  };
+  inp.onkeydown=e=>{if(e.key==='Enter')btn.click();};
+  btn.onclick=async()=>{
+    const code=inp.value.trim().toUpperCase();
+    if(!VALID_CODES.includes(code)){err.textContent='Неверный код. Проверь и попробуй снова.';inp.classList.add('error');setTimeout(()=>inp.classList.remove('error'),400);return;}
+    btn.disabled=true;loading.textContent='Загружаю данные...';
+    try{localStorage.setItem(ACT_KEY,code);}catch{}
+    userCode=code;
+    // пробуем загрузить облачные данные
+    const cloud=await supaLoad(code);
+    if(cloud){
+      S={...DEFAULTS(),...cloud};
+      S.tasks=S.tasks.map(t=>({streak:true,...t}));
+      if(S.levels&&!S.levelNames){S.levelNames=S.levels.map(l=>({id:l.id,name:l.name,color:l.color}));delete S.levels;}
+      if(!S.levelNames)S.levelNames=DEFAULTS().levelNames;
+    }
+    saveLocal();
+    pruneEntries();
+    render();
+  };
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+const DAY=86400000;
+const toISO=d=>d.toISOString().split('T')[0];
+const today=()=>toISO(new Date());
+const uid=()=>Math.random().toString(36).slice(2,9);
+const n=v=>Number(v)||0;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const esc=s=>String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function dRange(from,to){const out=[],s=new Date(from+'T12:00:00'),e=new Date(to+'T12:00:00');for(let d=new Date(s);d<=e;d=new Date(d.getTime()+DAY))out.push(toISO(d));return out;}
+const wdShort=iso=>new Date(iso+'T12:00:00').toLocaleDateString('ru-RU',{weekday:'short'}).slice(0,2).toUpperCase();
+const dtShort=iso=>new Date(iso+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+function hexAlpha(hex,a){const h=hex.replace('#','');const hh=h.length===3?h.split('').map(x=>x+x).join(''):h;return`rgba(${parseInt(hh.slice(0,2),16)},${parseInt(hh.slice(2,4),16)},${parseInt(hh.slice(4,6),16)},${a})`;}
+function ring(pct,color,sz=44){const r=16,c=2*Math.PI*r,off=c-(c*clamp(pct,0,100)/100);return`<svg width="${sz}" height="${sz}" viewBox="0 0 40 40"><circle cx="20" cy="20" r="${r}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5"/><circle cx="20" cy="20" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 20 20)"/><text x="20" y="24" text-anchor="middle" fill="${color}" font-size="10" font-weight="700" font-family="Exo 2,sans-serif">${pct}</text></svg>`;}
+
+// ── AUTO LEVELS ────────────────────────────────────────────────────────────
+function calcMaxDailyXP(tasks){return tasks.reduce((s,t)=>s+n(t.xp),0)||20;}
+function autoLevelThresholds(tasks){const m=calcMaxDailyXP(tasks);return[0,7,14,21,30].map(d=>Math.round(d*m*0.7));}
+
+// ── DEFAULTS ───────────────────────────────────────────────────────────────
+const DEFAULTS=()=>({
+  title:'HABIT RPG',name:'PLAYER',emoji:'⚔️',photo:'',
+  goal:20,penalty:10,threshold:15,challenge:null,
+  streakRules:[{id:uid(),days:3,bonus:5},{id:uid(),days:7,bonus:15},{id:uid(),days:14,bonus:30},{id:uid(),days:21,bonus:50}],
+  levelNames:[
+    {id:uid(),name:'Уровень 1',color:'#8cb4ff'},
+    {id:uid(),name:'Уровень 2',color:'#68e1d0'},
+    {id:uid(),name:'Уровень 3',color:'#8fe388'},
+    {id:uid(),name:'Уровень 4',color:'#ffad6b'},
+    {id:uid(),name:'Уровень 5',color:'#f3c55a'}
+  ],
+  tasks:[
+    {id:uid(),name:'Подъём до 8:00',type:'checkbox',xp:2,streak:true},
+    {id:uid(),name:'No Reels',type:'checkbox',xp:3,streak:true},
+    {id:uid(),name:'Тренировка',type:'checkbox',xp:5,streak:true},
+    {id:uid(),name:'Планировка дня',type:'checkbox',xp:2,streak:false},
+    {id:uid(),name:'Творчество',type:'number',xp:2,streak:false},
+    {id:uid(),name:'Работа',type:'number',xp:2,streak:false}
+  ],
+  entries:{}
+});
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let S;
+const LS_KEY='habit-rpg-v5';
+try{const raw=localStorage.getItem(LS_KEY);S=raw?{...DEFAULTS(),...JSON.parse(raw)}:DEFAULTS();}catch{S=DEFAULTS();}
+if(S.levels&&!S.levelNames){S.levelNames=S.levels.map(l=>({id:l.id,name:l.name,color:l.color}));delete S.levels;}
+if(!S.levelNames)S.levelNames=DEFAULTS().levelNames;
+S.tasks=S.tasks.map(t=>({streak:true,...t}));
+
+function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch{}}
+function save(){saveLocal();if(userCode)scheduleSync();}
+
+let draft=null;
+function openDraft(){draft=JSON.parse(JSON.stringify({title:S.title,name:S.name,emoji:S.emoji,goal:S.goal,penalty:S.penalty,threshold:S.threshold,streakRules:S.streakRules,levelNames:S.levelNames,tasks:S.tasks}));}
+function applyDraft(){Object.assign(S,draft);draft=null;pruneEntries();save();render();}
+function discardDraft(){draft=null;}
+
+function ensureEntry(iso){
+  if(!S.entries[iso])S.entries[iso]={};
+  S.tasks.forEach(t=>{if(S.entries[iso][t.id]===undefined)S.entries[iso][t.id]=t.type==='checkbox'?false:0;});
+}
+function pruneEntries(){
+  Object.keys(S.entries).forEach(iso=>{
+    S.tasks.forEach(t=>{if(S.entries[iso][t.id]===undefined)S.entries[iso][t.id]=t.type==='checkbox'?false:0;});
+    Object.keys(S.entries[iso]).forEach(tid=>{if(!S.tasks.find(t=>t.id===tid))delete S.entries[iso][tid];});
+  });
+  ensureEntry(today());
+}
+
+// ── XP & STATS ─────────────────────────────────────────────────────────────
+function dayXP(iso){const e=S.entries[iso];if(!e)return 0;return S.tasks.reduce((sum,t)=>{const v=e[t.id];if(t.type==='checkbox')return sum+(v?n(t.xp):0);return sum+n(v)*n(t.xp);},0);}
+function calcStreak(taskId=null){
+  const start=S.challenge?.start||today();const endDay=S.challenge?.end&&S.challenge.end<today()?S.challenge.end:today();
+  if(start>endDay)return 0;const days=dRange(start,endDay).reverse();let s=0;
+  for(const d of days){if(taskId){ensureEntry(d);const task=S.tasks.find(t=>t.id===taskId);if(!task)break;const val=S.entries[d]?.[taskId];const ok=task.type==='checkbox'?Boolean(val):n(val)>0;if(ok)s++;else break;}else{if(dayXP(d)>=n(S.threshold))s++;else break;}}
+  return s;
+}
+function totalStats(){
+  const start=S.challenge?.start||today();const endDay=S.challenge?.end&&S.challenge.end<today()?S.challenge.end:today();
+  const days=start<=endDay?dRange(start,endDay):[today()];let base=0,filled=0,missed=0;
+  days.forEach(d=>{const x=dayXP(d);if(x>0){base+=x;filled++;}else if(d<today())missed++;});
+  const streak=calcStreak();const bonus=[...S.streakRules].filter(r=>streak>=n(r.days)).sort((a,b)=>b.days-a.days)[0]?.bonus||0;
+  return{base,filled,missed,penalty:missed*n(S.penalty),streak,bonus,total:Math.max(0,base+bonus-missed*n(S.penalty))};
+}
+function buildLevels(){const t=autoLevelThresholds(S.tasks);return S.levelNames.map((ln,i)=>({...ln,min:t[i]||0}));}
+function currentLevel(total){const sorted=buildLevels();let cur=sorted[0];for(const l of sorted)if(total>=n(l.min))cur=l;const idx=sorted.findIndex(l=>l.id===cur.id);return{cur,next:sorted[idx+1]||null,all:sorted};}
+function historyDays(){const start=S.challenge?.start||today();const endDay=S.challenge?.end&&S.challenge.end<today()?S.challenge.end:today();if(start>endDay)return[today()];return dRange(start,endDay);}
+
+// ── DRAG ───────────────────────────────────────────────────────────────────
+let dragSrc=null;
+function initDrag(container,arr,onDrop){
+  container.querySelectorAll('[data-drag-id]').forEach(row=>{
+    row.draggable=true;
+    row.addEventListener('dragstart',e=>{dragSrc=row;row.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    row.addEventListener('dragend',()=>{dragSrc=null;container.querySelectorAll('[data-drag-id]').forEach(r=>r.classList.remove('dragging'));});
+    row.addEventListener('dragover',e=>{e.preventDefault();if(dragSrc&&dragSrc!==row){const si=arr.findIndex(x=>x.id===dragSrc.dataset.dragId),ti=arr.findIndex(x=>x.id===row.dataset.dragId);if(si>-1&&ti>-1){const item=arr.splice(si,1)[0];arr.splice(ti,0,item);onDrop();}}});
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+let daysOpen=false;
+function render(){
+  pruneEntries();const td=today();
+  if(!S.challenge){
+    document.getElementById('app').innerHTML=`
+      <div class="topbar"><div class="brand">${esc(S.title)}</div><div class="tbr"><button class="icobtn" id="setBtn">⚙️</button></div></div>
+      <div class="start-screen">
+        <div style="font-size:56px;margin-bottom:16px">⚔️</div>
+        <div class="start-title">${esc(S.name)}</div>
+        <div class="start-sub">Настрой задания в ⚙️ и запусти челлендж.<br>Прогресс считается с сегодняшнего дня.</div>
+        <div class="start-dur"><label>Длительность (дней)</label><input type="number" id="durInput" value="21" min="1" max="365"></div>
+        <button class="btn-start" id="startBtn">🚀 СТАРТ</button>
+      </div>
+      <footer>Данные синхронизируются в облаке</footer>`;
+    document.getElementById('setBtn').onclick=openSet;
+    document.getElementById('startBtn').onclick=()=>{const dur=Math.max(1,n(document.getElementById('durInput').value));const start=today();const end=toISO(new Date(new Date(start+'T12:00:00').getTime()+(dur-1)*DAY));S.challenge={start,end};save();render();};
+    return;
+  }
+  const entry=S.entries[td],st=totalStats(),{cur,next,all}=currentLevel(st.total);
+  const prog=next?clamp(Math.round(((st.total-n(cur.min))/(n(next.min)-n(cur.min)))*100),0,100):100;
+  const todayBase=dayXP(td),todayStreakBonus=[...S.streakRules].filter(r=>st.streak>=n(r.days)).sort((a,b)=>b.days-a.days)[0]?.bonus||0;
+  const todayEarned=todayBase+todayStreakBonus,todayPct=clamp(Math.round((todayBase/Math.max(1,n(S.goal)))*100),0,100);
+  const todayColor=todayPct>=100?'var(--gold)':todayPct>0?'var(--teal)':'rgba(255,255,255,.2)';
+  const s=new Date(S.challenge.start+'T12:00:00'),e=new Date(S.challenge.end+'T12:00:00'),t2=new Date(td+'T12:00:00');
+  const chalTotal=Math.round((e-s)/DAY)+1,chalPassed=clamp(Math.round((t2-s)/DAY)+1,0,chalTotal),chalPct=Math.round(chalPassed/chalTotal*100),chalRemain=Math.max(0,Math.round((e-t2)/DAY));
+  const hDays=historyDays();
+  const daysHTML=hDays.map(d=>{const x=dayXP(d);const pct=clamp(Math.round((x/Math.max(1,n(S.goal)))*100),0,100);const col=pct>=100?'var(--gold)':pct>0?'var(--teal)':'rgba(255,255,255,.15)';return`<div class="day-cell${d===td?' is-today':''}"><div class="dc-wd">${wdShort(d)}</div>${ring(pct,col,42)}<div class="dc-dt">${dtShort(d)}</div><div class="dc-xp">${x} XP</div></div>`;}).join('');
+
+  document.getElementById('app').innerHTML=`
+    <div class="topbar">
+      <div class="brand">${esc(S.title)}<div class="sync-dot" id="syncDot"></div></div>
+      <div class="tbr"><button class="icobtn" id="calBtn">🗓</button><button class="icobtn" id="setBtn">⚙️</button></div>
+    </div>
+    <div class="chal-bar">
+      <div class="chal-top"><span class="chal-title">🎯 Челлендж</span><span class="chal-dates">${S.challenge.start} → ${S.challenge.end}</span></div>
+      <div class="prog-track"><div class="prog-fill" style="width:${chalPct}%"></div></div>
+      <div class="chal-foot"><span>День ${chalPassed} из ${chalTotal}</span><span>Осталось ${chalRemain} дн. · <button class="chal-reset" id="resetChal">сбросить</button></span></div>
+    </div>
+    <div class="hero">
+      <div class="av-wrap"><div class="av">${S.photo?`<img src="${S.photo}" alt="">`:esc(S.emoji||'⚔️')}</div><div class="av-sub">профиль</div></div>
+      <div class="hero-r">
+        <div class="hname">${esc(S.name)}</div>
+        <div class="rank-row"><div class="rank" style="background:${hexAlpha(cur.color,.14)};border-color:${hexAlpha(cur.color,.3)};color:${cur.color}">${esc(cur.name)}</div><div class="xp-total">${st.total} XP</div></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${prog}%;background:linear-gradient(90deg,${cur.color},#ffe89b)"></div></div>
+        <div class="next-row"><span>${next?`До ${esc(next.name)}`:'🏆 Максимальный уровень'}</span><span>${next?(n(next.min)-st.total)+' XP':''}</span></div>
+      </div>
+    </div>
+    <div class="stats4">
+      <div class="scard"><div class="sv">${st.filled}</div><div class="sl">дней заполнено</div></div>
+      <div class="scard"><div class="sv" style="${st.streak>0?'color:var(--orange)':''}">${st.streak}🔥</div><div class="sl">стрик</div></div>
+      <div class="scard"><div class="sv" style="color:var(--red)">-${st.penalty}</div><div class="sl">штрафы XP</div></div>
+      <div class="scard"><div class="sv" style="color:var(--green)">+${st.bonus}</div><div class="sl">бонус стрика</div></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-title">Сегодня</div><div class="sec-sub">${new Date().toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'})}</div></div>
+      <div class="task-list">
+        ${S.tasks.map(t=>{const val=entry[t.id];const ts=t.streak?calcStreak(t.id):null;const badge=t.streak?`<span class="task-streak-badge${ts>0?' on':''}">${ts}🔥</span>`:'';
+          if(t.type==='checkbox')return`<div class="task-item${val?' done':''}"><button class="task-cb" data-toggle="${t.id}"><div class="check">${val?'✓':''}</div><div class="task-txt"><div class="task-name">${esc(t.name)}</div><div class="task-meta">+${t.xp} XP ${badge}</div></div></button></div>`;
+          return`<div class="task-item"><div class="task-txt" style="flex:1"><div class="task-name">${esc(t.name)}</div><div class="task-meta">${t.xp} XP за ед. ${badge}</div></div><input class="num-inp" type="number" min="0" value="${val||''}" placeholder="0" data-number="${t.id}"></div>`;
+        }).join('')}
+        <div class="xp-box"><div><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Сегодня заработано</div><div class="xp-earned">+${todayEarned} XP</div></div><div class="chips"><div class="chip">база +${todayBase}</div><div class="chip">стрик +${todayStreakBonus}</div></div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-title">Стрики</div><div class="sec-sub">порог ${S.threshold} XP/день</div></div>
+      <div class="streak-grid">
+        <div class="streak-card"><div class="sc-label">Общий стрик</div><div class="sc-val" style="${st.streak>0?'color:var(--orange)':''}">${st.streak} дней</div><div class="sc-sub">${st.streak>0?`Бонус +${st.bonus} XP`:'Начни сегодня!'}</div></div>
+        <div class="streak-card"><div class="sc-label">Штраф за пропуск</div><div class="sc-val" style="color:var(--red)">-${S.penalty} XP</div><div class="sc-sub">${st.missed} пропущено · -${st.penalty*st.missed} XP</div></div>
+        ${[...S.streakRules].sort((a,b)=>a.days-b.days).map(r=>`<div class="streak-card" style="${st.streak>=n(r.days)?'border-color:rgba(111,226,139,.3);background:rgba(111,226,139,.06)':''}"><div class="sc-label">${r.days} дней подряд</div><div class="sc-val" style="color:var(--green)">+${r.bonus} XP</div><div class="sc-sub">${st.streak>=n(r.days)?'✅ Активен':st.streak+' / '+r.days}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-title">Уровни</div></div>
+      <div class="level-list">
+        ${all.map((l,i)=>{const nx=all[i+1];const range=nx?`${l.min}–${n(nx.min)-1} XP`:`${l.min}+ XP`;const remain=st.total<n(l.min)?`${n(l.min)-st.total} XP`:(nx&&st.total<n(nx.min)?`${n(nx.min)-st.total} XP`:'✅');return`<div class="level-row${l.id===cur.id?' active-lv':''}"><div><div class="lv-name" style="color:${l.color}">${esc(l.name)}</div><div class="lv-range">${range}</div></div><div class="lv-remain">${remain}</div></div>`;}).join('')}
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-title">История</div><div class="sec-sub">с ${S.challenge.start} · ${hDays.length} дн.</div></div>
+      <button class="days-toggle" id="daysToggle">
+        <div class="dt-left"><div class="dt-title">Статистика по дням</div><div class="dt-sub">Сегодня ${todayBase} XP · ${todayPct}% от цели (${n(S.goal)} XP)</div></div>
+        <div class="dt-right">${ring(todayPct,todayColor,46)}<span class="arrow${daysOpen?' open':''}" id="daysArrow">▼</span></div>
+      </button>
+      <div class="days-wrap" id="daysWrap" style="display:${daysOpen?'block':'none'}"><div class="days-grid">${daysHTML}</div></div>
+    </div>
+    <footer>Данные синхронизируются в облаке по коду активации</footer>`;
+
+  document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{S.entries[td][b.dataset.toggle]=!S.entries[td][b.dataset.toggle];save();render();});
+  document.querySelectorAll('[data-number]').forEach(inp=>inp.oninput=e=>{S.entries[td][inp.dataset.number]=n(e.target.value);save();render();});
+  document.getElementById('daysToggle').onclick=()=>{daysOpen=!daysOpen;document.getElementById('daysWrap').style.display=daysOpen?'block':'none';document.getElementById('daysArrow').className='arrow'+(daysOpen?' open':'');};
+  document.getElementById('calBtn').onclick=openCal;
+  document.getElementById('setBtn').onclick=openSet;
+  document.getElementById('resetChal').onclick=()=>{if(confirm('Сбросить челлендж?')){S.challenge=null;S.entries={};save();render();}};
+}
+
+// ── CALENDAR ───────────────────────────────────────────────────────────────
+function openCal(){const td=today();document.getElementById('calStart').value=S.challenge?.start||td;if(!S.challenge){const d=new Date(td+'T12:00:00');d.setDate(d.getDate()+21);document.getElementById('calEnd').value=toISO(d);}else document.getElementById('calEnd').value=S.challenge.end;updCalDur();document.getElementById('calOverlay').classList.add('show');}
+function updCalDur(){const s=document.getElementById('calStart').value,e=document.getElementById('calEnd').value,el=document.getElementById('calDur');if(!s||!e){el.textContent='Выбери даты';return;}const days=Math.round((new Date(e+'T12:00:00')-new Date(s+'T12:00:00'))/DAY)+1;if(days<=0){el.textContent='⚠️ Конец раньше начала';return;}el.textContent=`📅 ${days} дней  ·  ${s} → ${e}`;}
+document.getElementById('calStart').oninput=updCalDur;
+document.getElementById('calEnd').oninput=updCalDur;
+function closeCal(){document.getElementById('calOverlay').classList.remove('show');}
+document.getElementById('calClose').onclick=closeCal;
+document.getElementById('calCancel').onclick=closeCal;
+document.getElementById('calOverlay').onclick=e=>{if(e.target.id==='calOverlay')closeCal();};
+document.getElementById('calSave').onclick=()=>{const s=document.getElementById('calStart').value,e=document.getElementById('calEnd').value;if(!s||!e)return;if(Math.round((new Date(e+'T12:00:00')-new Date(s+'T12:00:00'))/DAY)<0)return;S.challenge={start:s,end:e};Object.keys(S.entries).forEach(k=>{if(k<s)delete S.entries[k];});save();closeCal();render();};
+
+// ── SETTINGS ───────────────────────────────────────────────────────────────
+function openSet(){openDraft();document.getElementById('cfgTitle').value=draft.title;document.getElementById('cfgName').value=draft.name;document.getElementById('cfgEmoji').value=draft.emoji||'';document.getElementById('cfgGoal').value=draft.goal;document.getElementById('cfgPenalty').value=draft.penalty;document.getElementById('cfgThreshold').value=draft.threshold;rebuildRules();rebuildTasks();rebuildLevels();document.getElementById('setOverlay').classList.add('show');}
+function closeSet(){document.getElementById('setOverlay').classList.remove('show');}
+document.getElementById('setClose').onclick=()=>{discardDraft();closeSet();};
+document.getElementById('cancelSet').onclick=()=>{discardDraft();closeSet();};
+document.getElementById('saveSet').onclick=()=>{draft.title=document.getElementById('cfgTitle').value;draft.name=document.getElementById('cfgName').value;draft.emoji=document.getElementById('cfgEmoji').value;draft.goal=Math.max(1,n(document.getElementById('cfgGoal').value));draft.penalty=n(document.getElementById('cfgPenalty').value);draft.threshold=n(document.getElementById('cfgThreshold').value);applyDraft();closeSet();};
+document.getElementById('setOverlay').onclick=e=>{if(e.target.id==='setOverlay'){discardDraft();closeSet();}};
+function note(msg){const el=document.getElementById('setNotice');el.textContent=msg;setTimeout(()=>{if(el.textContent===msg)el.textContent='';},2200);}
+document.getElementById('cfgPhoto').onchange=e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{S.photo=ev.target.result;save();render();note('Фото обновлено');};r.readAsDataURL(f);};
+
+function rebuildRules(){const ui=document.getElementById('rulesUI');ui.innerHTML=[...draft.streakRules].sort((a,b)=>a.days-b.days).map(r=>`<div class="rule-row"><input class="inp" type="number" value="${r.days}" data-rd="${r.id}"><input class="inp" type="number" value="${r.bonus}" data-rb="${r.id}"><button class="del" data-rr="${r.id}">✕</button></div>`).join('');ui.querySelectorAll('[data-rd]').forEach(el=>el.oninput=e=>{draft.streakRules.find(r=>r.id===el.dataset.rd).days=n(e.target.value);});ui.querySelectorAll('[data-rb]').forEach(el=>el.oninput=e=>{draft.streakRules.find(r=>r.id===el.dataset.rb).bonus=n(e.target.value);});ui.querySelectorAll('[data-rr]').forEach(el=>el.onclick=()=>{draft.streakRules=draft.streakRules.filter(r=>r.id!==el.dataset.rr);rebuildRules();});}
+document.getElementById('addRuleBtn').onclick=()=>{const d=n(document.getElementById('nrDays').value),b=n(document.getElementById('nrBonus').value);if(!d||!b)return note('Заполни поля');draft.streakRules.push({id:uid(),days:d,bonus:b});rebuildRules();};
+
+function rebuildTasks(){
+  const ui=document.getElementById('tasksUI');
+  ui.innerHTML=draft.tasks.map(t=>`<div class="task-edit-row" data-drag-id="${t.id}"><div class="drag-handle">⠿</div><input class="inp" value="${esc(t.name)}" data-tn="${t.id}"><select class="inp" data-tt="${t.id}"><option value="checkbox"${t.type==='checkbox'?' selected':''}>Чек</option><option value="number"${t.type==='number'?' selected':''}>Число</option></select><input class="inp" type="number" value="${t.xp}" min="1" data-tx="${t.id}"><button class="tog ${t.streak?'on':'off'}" data-ts="${t.id}">${t.streak?'🔥':'—'}</button><button class="del" data-tr="${t.id}">✕</button></div>`).join('');
+  ui.querySelectorAll('[data-tn]').forEach(el=>el.oninput=e=>{draft.tasks.find(t=>t.id===el.dataset.tn).name=e.target.value;rebuildLevels();});
+  ui.querySelectorAll('[data-tt]').forEach(el=>el.onchange=e=>{draft.tasks.find(t=>t.id===el.dataset.tt).type=e.target.value;});
+  ui.querySelectorAll('[data-tx]').forEach(el=>el.oninput=e=>{draft.tasks.find(t=>t.id===el.dataset.tx).xp=n(e.target.value);rebuildLevels();});
+  ui.querySelectorAll('[data-ts]').forEach(el=>el.onclick=()=>{const t=draft.tasks.find(t=>t.id===el.dataset.ts);t.streak=!t.streak;el.classList.toggle('on');el.classList.toggle('off');el.textContent=t.streak?'🔥':'—';});
+  ui.querySelectorAll('[data-tr]').forEach(el=>el.onclick=()=>{draft.tasks=draft.tasks.filter(t=>t.id!==el.dataset.tr);rebuildTasks();rebuildLevels();});
+  initDrag(ui,draft.tasks,()=>{rebuildTasks();});
+}
+document.getElementById('addTaskBtn').onclick=()=>{const name=document.getElementById('ntName').value.trim();const type=document.getElementById('ntType').value;const xp=n(document.getElementById('ntXP').value)||1;const streak=document.getElementById('ntStreakTog').classList.contains('on');if(!name)return note('Введи название');draft.tasks.push({id:uid(),name,type,xp,streak});document.getElementById('ntName').value='';rebuildTasks();rebuildLevels();};
+
+function rebuildLevels(){const thresholds=autoLevelThresholds(draft.tasks);const maxDay=calcMaxDailyXP(draft.tasks);const ui=document.getElementById('levelsUI');ui.innerHTML=draft.levelNames.map((l,i)=>`<div class="lv-edit-row"><input class="inp" value="${esc(l.name)}" data-ln="${l.id}"><input class="inp" type="color" value="${l.color}" data-lc="${l.id}"><div style="font-size:11px;color:var(--teal);white-space:nowrap">${thresholds[i]} XP</div></div>`).join('');ui.querySelectorAll('[data-ln]').forEach(el=>el.oninput=e=>{draft.levelNames.find(l=>l.id===el.dataset.ln).name=e.target.value;});ui.querySelectorAll('[data-lc]').forEach(el=>el.oninput=e=>{draft.levelNames.find(l=>l.id===el.dataset.lc).color=e.target.value;});document.getElementById('lvHint').textContent=`Макс. XP в день: ${maxDay}. Пороги пересчитываются автоматически.`;}
+
+document.getElementById('resetBtn').onclick=()=>{if(!confirm('Сбросить все данные?'))return;S=DEFAULTS();pruneEntries();save();render();closeSet();};
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+pruneEntries();
+if(!userCode){showActivation();}else{render();}
+</script>
+</body>
+</html>
