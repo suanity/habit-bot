@@ -1,5 +1,6 @@
 const SUPABASE_URL = 'https://ivmdbkukjvxzoazcicet.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bWRia3VranZ4em9hemNpY2V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMTk5OTgsImV4cCI6MjA5MjU5NTk5OH0.0--m60cy6Ppz3_TC1-aX8sBG1ibyqHWE-ozR4y0zZM8';
+// Серверный ключ Supabase (secret / service_role). Хранится только в переменных окружения Vercel.
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 const MESSAGES = [
   '⚔️ Ты успел все квесты выполнить сегодня?',
@@ -13,15 +14,23 @@ const MESSAGES = [
 
 export default async function handler(req) {
   const auth = req.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('unauthorized', { status: 401 });
   }
 
   const r = await fetch(
     `${SUPABASE_URL}/rest/v1/user_data?chat_id=not.is.null&select=chat_id`,
-    { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    {
+      headers: {
+        apikey: SUPABASE_KEY,
+        ...(SUPABASE_KEY && SUPABASE_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${SUPABASE_KEY}` } : {}),
+      },
+    }
   );
   const rows = await r.json();
+  if (!Array.isArray(rows)) {
+    return new Response('db error', { status: 502 });
+  }
 
   // каждый день разное сообщение
   const dayIndex = new Date().getDay();

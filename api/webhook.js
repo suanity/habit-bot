@@ -1,12 +1,14 @@
 const SUPABASE_URL = 'https://ivmdbkukjvxzoazcicet.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2bWRia3VranZ4em9hemNpY2V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMTk5OTgsImV4cCI6MjA5MjU5NTk5OH0.0--m60cy6Ppz3_TC1-aX8sBG1ibyqHWE-ozR4y0zZM8';
+// Серверный ключ Supabase (secret / service_role). Хранится только в переменных окружения Vercel.
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
 
 const supa = (path, opts = {}) =>
   fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
       apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      // legacy service_role — JWT, новый secret key (sb_secret_...) передаётся только в apikey
+      ...(SUPABASE_KEY && SUPABASE_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${SUPABASE_KEY}` } : {}),
       'Content-Type': 'application/json',
       ...(opts.headers || {}),
     },
@@ -19,28 +21,45 @@ const tg = (method, body) =>
     body: JSON.stringify(body),
   });
 
+// Берёт свободный код атомарно: пометка used проходит только если код всё ещё свободен.
 async function sendCode(chatId) {
-  const r = await supa('codes?used=eq.false&limit=1&select=code');
-  const rows = await r.json();
-  if (!rows.length) {
-    await tg('sendMessage', { chat_id: chatId, text: '⚠️ Коды закончились. Свяжись с автором.' });
-    return null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await supa('codes?used=eq.false&limit=1&select=code');
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows.length) {
+      await tg('sendMessage', { chat_id: chatId, text: '⚠️ Коды закончились. Свяжись с автором.' });
+      return null;
+    }
+    const code = rows[0].code;
+    const claim = await supa(`codes?code=eq.${encodeURIComponent(code)}&used=eq.false`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ used: true, chat_id: chatId }),
+    });
+    const claimed = await claim.json();
+    if (Array.isArray(claimed) && claimed.length) return code;
   }
-  const code = rows[0].code;
-  await supa(`codes?code=eq.${encodeURIComponent(code)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ used: true, chat_id: chatId }),
-  });
-  return code;
+  return null;
 }
 
 async function registerNotify(chatId, code) {
+  const c = await supa(`codes?code=eq.${encodeURIComponent(code)}&select=chat_id`);
+  const codeRows = await c.json();
+  if (!Array.isArray(codeRows) || !codeRows.length) {
+    await tg('sendMessage', { chat_id: chatId, text: '❌ Код не найден.' });
+    return;
+  }
+  const owner = codeRows[0].chat_id;
+  if (owner && String(owner) !== String(chatId)) {
+    await tg('sendMessage', { chat_id: chatId, text: '❌ Этот код выдан другому аккаунту.' });
+    return;
+  }
   const r = await supa(`user_data?code=eq.${encodeURIComponent(code)}&select=code`);
   const rows = await r.json();
-  if (!rows.length) {
+  if (!Array.isArray(rows) || !rows.length) {
     await tg('sendMessage', {
       chat_id: chatId,
-      text: '❌ Код не найден. Сначала открой приложение и активируй его — потом напиши /notify.',
+      text: '❌ Код ещё не активирован. Сначала открой приложение и активируй его — потом напиши /notify.',
     });
     return;
   }
@@ -60,6 +79,13 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Проверка подписи Telegram: без неё любой может подделать апдейт от имени администратора.
+  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+  if (WEBHOOK_SECRET && req.headers['x-telegram-bot-api-secret-token'] !== WEBHOOK_SECRET) {
+    res.status(401).send('unauthorized');
+    return;
+  }
+
   const body = req.body;
   const msg = body?.message;
   if (!msg) {
@@ -71,7 +97,9 @@ export default async function handler(req, res) {
   const text = (msg.text || '').trim();
   const username = msg.from?.username || msg.from?.first_name || 'пользователь';
   const ADMIN_ID = process.env.ADMIN_ID;
-  const APP_URL = process.env.APP_URL || 'https://ссылка-на-приложение';
+  const APP_URL = process.env.APP_URL || 'https://suanity.github.io/habit-rpg';
+  // Админ-команды работают только при настроенной подписи вебхука.
+  const isAdmin = Boolean(WEBHOOK_SECRET) && String(chatId) === String(ADMIN_ID);
 
   if (text === '/start') {
     await tg('sendMessage', {
@@ -94,7 +122,7 @@ export default async function handler(req, res) {
         text: `🛒 Новый запрос!\n\n👤 @${username}\n🆔 ${chatId}\n\nОтправь: /approve ${chatId}`,
       });
     }
-  } else if (text.startsWith('/approve') && String(chatId) === String(ADMIN_ID)) {
+  } else if (text.startsWith('/approve') && isAdmin) {
     const targetId = parseInt(text.split(' ')[1]);
     if (!targetId) {
       await tg('sendMessage', { chat_id: chatId, text: 'Использование: /approve <chat_id>' });
@@ -120,19 +148,19 @@ export default async function handler(req, res) {
     } else {
       await registerNotify(chatId, code);
     }
-  } else if (text === '/pending' && String(chatId) === String(ADMIN_ID)) {
+  } else if (text === '/pending' && isAdmin) {
     const r = await supa('pending?select=chat_id,username,created_at&order=created_at');
     const rows = await r.json();
-    if (!rows.length) {
+    if (!Array.isArray(rows) || !rows.length) {
       await tg('sendMessage', { chat_id: chatId, text: '📭 Нет ожидающих.' });
     } else {
       const list = rows.map(r => `@${r.username} → /approve ${r.chat_id}`).join('\n');
       await tg('sendMessage', { chat_id: chatId, text: `📋 Ожидают:\n\n${list}` });
     }
-  } else if (text === '/codes' && String(chatId) === String(ADMIN_ID)) {
+  } else if (text === '/codes' && isAdmin) {
     const r = await supa('codes?used=eq.false&select=code');
     const rows = await r.json();
-    await tg('sendMessage', { chat_id: chatId, text: `🔑 Свободных кодов: ${rows.length}` });
+    await tg('sendMessage', { chat_id: chatId, text: `🔑 Свободных кодов: ${Array.isArray(rows) ? rows.length : 0}` });
   }
 
   res.status(200).send('ok');
