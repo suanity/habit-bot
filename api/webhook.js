@@ -1,3 +1,5 @@
+import { webhookSecret } from '../lib/secret.js';
+
 const SUPABASE_URL = 'https://ivmdbkukjvxzoazcicet.supabase.co';
 // Серверный ключ Supabase (secret / service_role). Хранится только в переменных окружения Vercel.
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
@@ -80,8 +82,8 @@ export default async function handler(req, res) {
   }
 
   // Проверка подписи Telegram: без неё любой может подделать апдейт от имени администратора.
-  const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
-  if (WEBHOOK_SECRET && req.headers['x-telegram-bot-api-secret-token'] !== WEBHOOK_SECRET) {
+  // Подпись выводится из BOT_TOKEN; вебхук регистрируется страницей /api/setup.
+  if (!process.env.BOT_TOKEN || req.headers['x-telegram-bot-api-secret-token'] !== webhookSecret()) {
     res.status(401).send('unauthorized');
     return;
   }
@@ -98,8 +100,8 @@ export default async function handler(req, res) {
   const username = msg.from?.username || msg.from?.first_name || 'пользователь';
   const ADMIN_ID = process.env.ADMIN_ID;
   const APP_URL = process.env.APP_URL || 'https://suanity.github.io/habit-rpg';
-  // Админ-команды работают только при настроенной подписи вебхука.
-  const isAdmin = Boolean(WEBHOOK_SECRET) && String(chatId) === String(ADMIN_ID);
+  // Подпись уже проверена выше, поэтому chat.id в апдейте можно считать подлинным.
+  const isAdmin = Boolean(ADMIN_ID) && String(chatId) === String(ADMIN_ID);
 
   if (text === '/start') {
     await tg('sendMessage', {
