@@ -9,7 +9,7 @@ const tg = (method, body) =>
     body: JSON.stringify(body),
   });
 
-const openButton = (url, text = 'Войти в Мир') => ({
+const openButton = (url, text = 'Войти в лобби') => ({
   inline_keyboard: [[{ text, web_app: { url } }]],
 });
 
@@ -59,13 +59,13 @@ export default async function handler(req, res) {
     if (await isLinked(chatId)) {
       await tg('sendMessage', {
         chat_id: chatId,
-        text: `С возвращением, ${username}. Квесты дня ждут в Мире.`,
+        text: `С возвращением, ${username}. Квесты дня ждут в лобби.`,
         reply_markup: openButton(APP_URL),
       });
     } else {
       await tg('sendMessage', {
         chat_id: chatId,
-        text: `Привет, ${username}.\n\nЖизнь как игра: ежедневные квесты, статы, ранги и рейтинг недели.\n\nДоступ → /buy`,
+        text: `NO NPC. Мультиплеер из твоей реальной жизни.\n\nЕжедневные квесты на тело, разум, волю, влияние и деньги. Ранги, серии, рейтинг недели и другие игроки рядом.\n\nПолучить доступ → /buy`,
       });
     }
   } else if (text === '/buy') {
@@ -93,7 +93,7 @@ export default async function handler(req, res) {
       if (code) {
         await tg('sendMessage', {
           chat_id: targetId,
-          text: 'Оплата подтверждена. Доступ открыт.',
+          text: 'Оплата подтверждена. Лобби открыто. Жми кнопку, выбирай героя и забирай первый квест.',
           reply_markup: openButton(APP_URL),
         });
         await tg('sendMessage', { chat_id: chatId, text: `Доступ открыт → ${targetId}` });
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
         const sr = await supa('tg_links?select=tg_id&limit=500');
         const subs = await sr.json();
         const ids = Array.isArray(subs) ? [...new Set(subs.map(s => String(s.tg_id)))] : [];
-        const note = `Новый квест в Мире\n${p.stat} +${p.xp} XP\n${p.title}`;
+        const note = `Новый квест в лобби\n${p.stat} +${p.xp} XP\n${p.title}`;
         const markup = openButton(`${APP_URL}?q=${created[0].id}`, 'Открыть квест');
         let sent = 0;
         for (let i = 0; i < ids.length; i += 20) {

@@ -1,13 +1,13 @@
 import { supa } from '../lib/supa.js';
 
 const MESSAGES = [
-  'Ты успел все квесты выполнить сегодня?',
+  'Сегодняшние квесты ещё не закрыты. Лобби ждёт.',
   'День идёт. XP сами себя не заработают.',
-  'Не дай стрику оборваться. Зайди и отметь.',
+  'Серия держится на одном квесте. Закрой хотя бы один.',
   'Сегодняшний день ещё можно спасти.',
-  'Твой персонаж ждёт. Квесты не закрыты.',
-  'Один день без отметки — и стрик сгорит.',
-  'Зайди, отметь задания. Это займёт 10 секунд.',
+  'Другие игроки уже в деле. Твоя очередь.',
+  'Один квест — и день засчитан. Это займёт пару минут.',
+  'NPC откладывает. Игрок заходит и закрывает квест.',
 ];
 
 export default async function handler(req) {
@@ -26,7 +26,7 @@ export default async function handler(req) {
   const dayIndex = new Date().getDay();
   const text = MESSAGES[dayIndex % MESSAGES.length];
   const APP_URL = process.env.APP_URL || 'https://suanity.github.io/habit-rpg';
-  const reply_markup = { inline_keyboard: [[{ text: 'Войти в Мир', web_app: { url: APP_URL } }]] };
+  const reply_markup = { inline_keyboard: [[{ text: 'Войти в лобби', web_app: { url: APP_URL } }]] };
 
   let sent = 0;
   for (const row of rows) {
