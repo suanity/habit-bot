@@ -1,21 +1,6 @@
 import { webhookSecret } from '../lib/secret.js';
 import { parseDrop, moscowDay, DROP_USAGE } from '../lib/drop.js';
-
-const SUPABASE_URL = 'https://ivmdbkukjvxzoazcicet.supabase.co';
-// Серверный ключ Supabase (secret / service_role). Хранится только в переменных окружения Vercel.
-const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY;
-
-const supa = (path, opts = {}) =>
-  fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...opts,
-    headers: {
-      apikey: SUPABASE_KEY,
-      // legacy service_role — JWT, новый secret key (sb_secret_...) передаётся только в apikey
-      ...(SUPABASE_KEY && SUPABASE_KEY.startsWith('eyJ') ? { Authorization: `Bearer ${SUPABASE_KEY}` } : {}),
-      'Content-Type': 'application/json',
-      ...(opts.headers || {}),
-    },
-  });
+import { supa } from '../lib/supa.js';
 
 const tg = (method, body) =>
   fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/${method}`, {
@@ -24,56 +9,22 @@ const tg = (method, body) =>
     body: JSON.stringify(body),
   });
 
-// Берёт свободный код атомарно: пометка used проходит только если код всё ещё свободен.
-async function sendCode(chatId) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await supa('codes?used=eq.false&limit=1&select=code');
-    const rows = await r.json();
-    if (!Array.isArray(rows) || !rows.length) {
-      await tg('sendMessage', { chat_id: chatId, text: '⚠️ Коды закончились. Свяжись с автором.' });
-      return null;
-    }
-    const code = rows[0].code;
-    const claim = await supa(`codes?code=eq.${encodeURIComponent(code)}&used=eq.false`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=representation' },
-      body: JSON.stringify({ used: true, chat_id: chatId }),
-    });
-    const claimed = await claim.json();
-    if (Array.isArray(claimed) && claimed.length) return code;
-  }
-  return null;
+const openButton = (url, text = 'Войти в Мир') => ({
+  inline_keyboard: [[{ text, web_app: { url } }]],
+});
+
+// Выдаёт доступ атомарно на стороне базы: свободный код привязывается к Telegram-аккаунту.
+async function grantAccess(tgId) {
+  const r = await supa('rpc/grant_access', { method: 'POST', body: JSON.stringify({ p_tg_id: tgId }) });
+  if (!r.ok) return null;
+  const code = await r.json();
+  return typeof code === 'string' ? code : null;
 }
 
-async function registerNotify(chatId, code) {
-  const c = await supa(`codes?code=eq.${encodeURIComponent(code)}&select=chat_id`);
-  const codeRows = await c.json();
-  if (!Array.isArray(codeRows) || !codeRows.length) {
-    await tg('sendMessage', { chat_id: chatId, text: '❌ Код не найден.' });
-    return;
-  }
-  const owner = codeRows[0].chat_id;
-  if (owner && String(owner) !== String(chatId)) {
-    await tg('sendMessage', { chat_id: chatId, text: '❌ Этот код выдан другому аккаунту.' });
-    return;
-  }
-  const r = await supa(`user_data?code=eq.${encodeURIComponent(code)}&select=code`);
+async function isLinked(tgId) {
+  const r = await supa(`tg_links?tg_id=eq.${tgId}&select=tg_id&limit=1`);
   const rows = await r.json();
-  if (!Array.isArray(rows) || !rows.length) {
-    await tg('sendMessage', {
-      chat_id: chatId,
-      text: '❌ Код ещё не активирован. Сначала открой приложение и активируй его — потом напиши /notify.',
-    });
-    return;
-  }
-  await supa(`user_data?code=eq.${encodeURIComponent(code)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ chat_id: chatId }),
-  });
-  await tg('sendMessage', {
-    chat_id: chatId,
-    text: '✅ Уведомления подключены!\nКаждый вечер в 21:00 буду напоминать заполнить день.',
-  });
+  return Array.isArray(rows) && rows.length > 0;
 }
 
 export default async function handler(req, res) {
@@ -104,11 +55,19 @@ export default async function handler(req, res) {
   // Подпись уже проверена выше, поэтому chat.id в апдейте можно считать подлинным.
   const isAdmin = Boolean(ADMIN_ID) && String(chatId) === String(ADMIN_ID);
 
-  if (text === '/start') {
-    await tg('sendMessage', {
-      chat_id: chatId,
-      text: `👋 Привет, ${username}!\n\nHabit RPG — прокачка реальной жизни в стиле RPG. Ставишь галочки, получаешь XP, качаешь уровень.\n\n💳 Купить доступ → /buy\n🔔 Подключить уведомления → /notify КОД`,
-    });
+  if (/^\/start(@\w+)?(\s|$)/.test(text)) {
+    if (await isLinked(chatId)) {
+      await tg('sendMessage', {
+        chat_id: chatId,
+        text: `С возвращением, ${username}. Квесты дня ждут в Мире.`,
+        reply_markup: openButton(APP_URL),
+      });
+    } else {
+      await tg('sendMessage', {
+        chat_id: chatId,
+        text: `Привет, ${username}.\n\nЖизнь как игра: ежедневные квесты, статы, ранги и рейтинг недели.\n\nДоступ → /buy`,
+      });
+    }
   } else if (text === '/buy') {
     await supa('pending', {
       method: 'POST',
@@ -117,12 +76,12 @@ export default async function handler(req, res) {
     });
     await tg('sendMessage', {
       chat_id: chatId,
-      text: `💳 Стоимость: 500 ₽\n\nПереведи на карту и пришли скриншот оплаты сюда.\n\nКак подтвержу — сразу пришлю код активации 🚀`,
+      text: `Стоимость: 500 ₽\n\nПереведи на карту и пришли скриншот оплаты сюда.\n\nПосле подтверждения доступ откроется автоматически.`,
     });
     if (ADMIN_ID) {
       await tg('sendMessage', {
         chat_id: ADMIN_ID,
-        text: `🛒 Новый запрос!\n\n👤 @${username}\n🆔 ${chatId}\n\nОтправь: /approve ${chatId}`,
+        text: `Новый запрос\n\n@${username}\n${chatId}\n\n/approve ${chatId}`,
       });
     }
   } else if (text.startsWith('/approve') && isAdmin) {
@@ -130,35 +89,27 @@ export default async function handler(req, res) {
     if (!targetId) {
       await tg('sendMessage', { chat_id: chatId, text: 'Использование: /approve <chat_id>' });
     } else {
-      const code = await sendCode(targetId);
+      const code = await grantAccess(targetId);
       if (code) {
         await tg('sendMessage', {
           chat_id: targetId,
-          text: `✅ Оплата подтверждена!\n\nТвой код:\n\`${code}\`\n\nОткрой приложение и введи код:\n${APP_URL}\n\nПосле активации напиши:\n/notify ${code}`,
-          parse_mode: 'Markdown',
+          text: 'Оплата подтверждена. Доступ открыт.',
+          reply_markup: openButton(APP_URL),
         });
-        await tg('sendMessage', { chat_id: chatId, text: `✅ Код отправлен → ${targetId}` });
+        await tg('sendMessage', { chat_id: chatId, text: `Доступ открыт → ${targetId}` });
         await supa(`pending?chat_id=eq.${targetId}`, { method: 'DELETE' });
+      } else {
+        await tg('sendMessage', { chat_id: chatId, text: 'Не удалось выдать доступ: свободные коды закончились.' });
       }
-    }
-  } else if (text.startsWith('/notify')) {
-    const code = text.split(' ')[1]?.trim().toUpperCase();
-    if (!code) {
-      await tg('sendMessage', {
-        chat_id: chatId,
-        text: 'Использование: /notify HRPG-XXXX-XXXX-XXXX',
-      });
-    } else {
-      await registerNotify(chatId, code);
     }
   } else if (text === '/pending' && isAdmin) {
     const r = await supa('pending?select=chat_id,username,created_at&order=created_at');
     const rows = await r.json();
     if (!Array.isArray(rows) || !rows.length) {
-      await tg('sendMessage', { chat_id: chatId, text: '📭 Нет ожидающих.' });
+      await tg('sendMessage', { chat_id: chatId, text: 'Нет ожидающих.' });
     } else {
       const list = rows.map(r => `@${r.username} → /approve ${r.chat_id}`).join('\n');
-      await tg('sendMessage', { chat_id: chatId, text: `📋 Ожидают:\n\n${list}` });
+      await tg('sendMessage', { chat_id: chatId, text: `Ожидают:\n\n${list}` });
     }
   } else if (/^\/drop(@\w+)?(\s|$)/.test(text) && isAdmin) {
     const p = parseDrop(text);
@@ -176,24 +127,29 @@ export default async function handler(req, res) {
       });
       const created = await ins.json();
       if (!ins.ok || !Array.isArray(created) || !created.length) {
-        await tg('sendMessage', { chat_id: chatId, text: '❌ Не удалось создать квест.' });
+        await tg('sendMessage', { chat_id: chatId, text: 'Не удалось создать квест.' });
       } else {
-        const sr = await supa('user_data?chat_id=not.is.null&select=chat_id&limit=200');
+        const sr = await supa('tg_links?select=tg_id&limit=500');
         const subs = await sr.json();
-        const ids = Array.isArray(subs) ? [...new Set(subs.map(s => String(s.chat_id)))] : [];
-        const note = `⚡ Новый квест в Мире\n${p.stat} +${p.xp} XP\n${p.title}\n\nОткрой приложение → Мир:\n${APP_URL}`;
+        const ids = Array.isArray(subs) ? [...new Set(subs.map(s => String(s.tg_id)))] : [];
+        const note = `Новый квест в Мире\n${p.stat} +${p.xp} XP\n${p.title}`;
+        const markup = openButton(`${APP_URL}?q=${created[0].id}`, 'Открыть квест');
         let sent = 0;
         for (let i = 0; i < ids.length; i += 20) {
-          const res = await Promise.all(ids.slice(i, i + 20).map(id => tg('sendMessage', { chat_id: id, text: note }).then(r => r.ok).catch(() => false)));
-          sent += res.filter(Boolean).length;
+          const part = await Promise.all(
+            ids.slice(i, i + 20).map(id =>
+              tg('sendMessage', { chat_id: id, text: note, reply_markup: markup }).then(r => r.ok).catch(() => false)
+            )
+          );
+          sent += part.filter(Boolean).length;
         }
-        await tg('sendMessage', { chat_id: chatId, text: `✅ Квест #${created[0].id} выпущен на ${day}. Уведомлено: ${sent}/${ids.length}` });
+        await tg('sendMessage', { chat_id: chatId, text: `Квест #${created[0].id} выпущен на ${day}. Уведомлено: ${sent}/${ids.length}` });
       }
     }
   } else if (text === '/codes' && isAdmin) {
     const r = await supa('codes?used=eq.false&select=code');
     const rows = await r.json();
-    await tg('sendMessage', { chat_id: chatId, text: `🔑 Свободных кодов: ${Array.isArray(rows) ? rows.length : 0}` });
+    await tg('sendMessage', { chat_id: chatId, text: `Свободных мест: ${Array.isArray(rows) ? rows.length : 0}` });
   }
 
   res.status(200).send('ok');
