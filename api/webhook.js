@@ -1,4 +1,5 @@
 import { webhookSecret } from '../lib/secret.js';
+import { parseDrop, moscowDay, DROP_USAGE } from '../lib/drop.js';
 
 const SUPABASE_URL = 'https://ivmdbkukjvxzoazcicet.supabase.co';
 // Серверный ключ Supabase (secret / service_role). Хранится только в переменных окружения Vercel.
@@ -158,6 +159,36 @@ export default async function handler(req, res) {
     } else {
       const list = rows.map(r => `@${r.username} → /approve ${r.chat_id}`).join('\n');
       await tg('sendMessage', { chat_id: chatId, text: `📋 Ожидают:\n\n${list}` });
+    }
+  } else if (/^\/drop(@\w+)?(\s|$)/.test(text) && isAdmin) {
+    const p = parseDrop(text);
+    if (p.error) {
+      await tg('sendMessage', { chat_id: chatId, text: DROP_USAGE });
+    } else {
+      const day = moscowDay();
+      const ins = await supa('world_quests', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          title: p.title, descr: p.descr, stat: p.stat, xp: p.xp,
+          kind: 'daily', day_from: day, day_to: day, source: 'drop',
+        }),
+      });
+      const created = await ins.json();
+      if (!ins.ok || !Array.isArray(created) || !created.length) {
+        await tg('sendMessage', { chat_id: chatId, text: '❌ Не удалось создать квест.' });
+      } else {
+        const sr = await supa('user_data?chat_id=not.is.null&select=chat_id&limit=200');
+        const subs = await sr.json();
+        const ids = Array.isArray(subs) ? [...new Set(subs.map(s => String(s.chat_id)))] : [];
+        const note = `⚡ Новый квест в Мире\n${p.stat} +${p.xp} XP\n${p.title}\n\nОткрой приложение → Мир:\n${APP_URL}`;
+        let sent = 0;
+        for (let i = 0; i < ids.length; i += 20) {
+          const res = await Promise.all(ids.slice(i, i + 20).map(id => tg('sendMessage', { chat_id: id, text: note }).then(r => r.ok).catch(() => false)));
+          sent += res.filter(Boolean).length;
+        }
+        await tg('sendMessage', { chat_id: chatId, text: `✅ Квест #${created[0].id} выпущен на ${day}. Уведомлено: ${sent}/${ids.length}` });
+      }
     }
   } else if (text === '/codes' && isAdmin) {
     const r = await supa('codes?used=eq.false&select=code');
