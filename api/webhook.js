@@ -1,5 +1,5 @@
 import { webhookSecret } from '../lib/secret.js';
-import { parseDrop, parseHide, moscowDay, DROP_USAGE, BOSS_USAGE, HELP_ADMIN } from '../lib/drop.js';
+import { parseDrop, parseHide, parseSkin, moscowDay, DROP_USAGE, BOSS_USAGE, SKIN_USAGE, SKIN_NAMES, HELP_ADMIN } from '../lib/drop.js';
 import { supa } from '../lib/supa.js';
 
 const tg = (method, body) =>
@@ -192,6 +192,42 @@ export default async function handler(req, res) {
         text: Array.isArray(rows) && rows.length ? `${p.nick}: ${p.hide ? 'скрыт из рейтинга и лобби' : 'снова виден'}` : 'Игрок с таким позывным не найден.',
       });
     }
+  } else if (/^\/(un)?skin(@\w+)?(\s|$)/.test(text) && isAdmin) {
+    const p = parseSkin(text);
+    if (!p) {
+      await tg('sendMessage', { chat_id: chatId, text: SKIN_USAGE });
+    } else {
+      const pr = await supa(`players?nick=eq.${encodeURIComponent(p.nick)}&select=code,nick&limit=1`);
+      const prow = pr.ok ? await pr.json().catch(() => []) : [];
+      if (!Array.isArray(prow) || !prow.length) {
+        await tg('sendMessage', { chat_id: chatId, text: 'Игрок с таким позывным не найден.' });
+      } else {
+        const fn = p.grant ? 'admin_grant_item' : 'admin_revoke_item';
+        const r = await supa(`rpc/${fn}`, { method: 'POST', body: JSON.stringify({ p_code: prow[0].code, p_item: p.id }) });
+        const out = r.ok ? await r.json().catch(() => null) : null;
+        if (!out || !out.ok) {
+          const why = { already_owned: `Уже выдан (№${out && out.serial}).`, sold_out: 'Тираж закончился.', not_owned: 'У игрока нет этого скина.' }[out && out.error] || 'Не удалось.';
+          await tg('sendMessage', { chat_id: chatId, text: why });
+        } else if (p.grant) {
+          await tg('sendMessage', { chat_id: chatId, text: `${SKIN_NAMES[p.id]} #${out.serial} из ${out.max} выдан: ${prow[0].nick}` });
+          const lr = await supa(`tg_links?code=eq.${prow[0].code}&select=tg_id&limit=1`);
+          const lrow = lr.ok ? await lr.json().catch(() => []) : [];
+          if (Array.isArray(lrow) && lrow.length) {
+            await tg('sendMessage', {
+              chat_id: lrow[0].tg_id,
+              text: `Тебе выдан эксклюзивный скин ${SKIN_NAMES[p.id]} #${out.serial} из ${out.max}.\nОн в редакторе героя, вкладка СКИНЫ.`,
+              reply_markup: openButton(APP_URL, 'Надеть'),
+            }).catch(() => {});
+          }
+        } else {
+          await tg('sendMessage', { chat_id: chatId, text: `${SKIN_NAMES[p.id]} забран у ${prow[0].nick}. Номер издания не освобождается.` });
+        }
+      }
+    }
+  } else if (text === '/skins' && isAdmin) {
+    const r = await supa('skin_catalog?select=item_id,name,issued,max_serial&order=item_id');
+    const rows = r.ok ? await r.json().catch(() => []) : [];
+    await tg('sendMessage', { chat_id: chatId, text: Array.isArray(rows) && rows.length ? rows.map(x => `${x.item_id} ${x.name}: ${x.issued}/${x.max_serial}`).join('\n') : 'Каталог пуст.' });
   } else if (/^\/help(@\w+)?$/.test(text) && isAdmin) {
     await tg('sendMessage', { chat_id: chatId, text: HELP_ADMIN });
   } else if (text === '/codes' && isAdmin) {
